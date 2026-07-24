@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07110f">
+  <meta name="description" content="基于证据与规则的非官方拳击评判分析工具">
+  <title>CornerSight · 拳击评判员 Agent</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="CornerSight 首页">
+      <span class="brand-mark"><i></i><i></i><i></i></span>
+      <span>CornerSight</span>
+    </a>
+    <div class="top-actions">
+      <a class="nav-link" href="/docs" target="_blank" rel="noreferrer">API 文档 <span>↗</span></a>
+      <div class="service-pill"><span class="pulse" id="healthDot"></span><span id="healthText">连接中</span></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow"><span>01</span> EVIDENCE-LED JUDGING</div>
+      <h1>让每一张记分卡<br><em>都有证据可循。</em></h1>
+      <p>上传赛事预测数据，通过规则检索、大模型定性分析与确定性计分，生成透明、可复核的非官方比赛报告。</p>
+      <div class="hero-meta">
+        <div><strong>QWEN</strong><span>语义规则检索</span></div>
+        <div><strong>DEEPSEEK</strong><span>逐回合判断</span></div>
+        <div><strong>10-POINT</strong><span>确定性计分</span></div>
+      </div>
+    </section>
+
+    <section class="workspace" aria-label="分析工作台">
+      <aside class="stage-card">
+        <div class="card-label">分析进度</div>
+        <ol class="steps" id="steps">
+          <li class="active" data-step="upload"><span>1</span><div><strong>数据载入</strong><small>上传事件 CSV</small></div></li>
+          <li data-step="context"><span>2</span><div><strong>事实确认</strong><small>补充或跳过信息</small></div></li>
+          <li data-step="rules"><span>3</span><div><strong>规则与评判</strong><small>检索证据并分析</small></div></li>
+          <li data-step="report"><span>4</span><div><strong>分析报告</strong><small>查看比分与依据</small></div></li>
+        </ol>
+        <div class="trust-note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.4c0 4.6 3.2 8.9 7.5 9.9 4.3-1 7.5-5.3 7.5-9.9V6L12 3Zm0 2.2 5.5 2.2v4c0 3.5-2.3 6.8-5.5 7.8-3.2-1-5.5-4.3-5.5-7.8v-4L12 5.2Z"/></svg>
+          <p><strong>非官方分析</strong><br>结论仅供技术研究与复核参考，不代表赛事官方裁定。</p>
+        </div>
+      </aside>
+
+      <div class="main-card">
+        <section id="uploadView" class="view active">
+          <div class="section-heading">
+            <div><span class="section-index">01 / DATA</span><h2>开始一次比赛分析</h2></div>
+            <span class="tag">CSV INPUT</span>
+          </div>
+          <form id="uploadForm">
+            <label class="dropzone" id="dropzone" for="csvFile">
+              <input id="csvFile" name="csv" type="file" accept=".csv,text/csv" required>
+              <span class="upload-icon"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5M5 15v4h14v-4"/></svg></span>
+              <strong id="fileTitle">拖入赛事 CSV 文件</strong>
+              <small id="fileMeta">或点击选择文件 · 仅支持 .csv</small>
+            </label>
+            <label class="field-label" for="question">你的分析问题 <span>可选</span></label>
+            <textarea id="question" name="question" rows="3" maxlength="2000" placeholder="例如：重点分析红方的有效进攻是否占优，以及第四回合的判定依据。"></textarea>
+            <button class="primary-btn" id="submitUpload" type="submit"><span>创建分析会话</span><b>→</b></button>
+          </form>
+          <button class="resume-btn hidden" id="resumeButton" type="button">恢复上一次分析 <span>→</span></button>
+        </section>
+
+        <section id="contextView" class="view">
+          <div class="section-heading">
+            <div><span class="section-index">02 / CONTEXT</span><h2>确认分析上下文</h2></div>
+            <span class="status-badge" id="sessionStatus">等待确认</span>
+          </div>
+          <div class="session-strip"><span>SESSION</span><code id="sessionId">—</code><button id="copySession" type="button">复制</button></div>
+          <div class="context-progress" id="contextProgress" aria-label="补充信息进度"></div>
+          <div id="confirmedSupplements"></div>
+          <div id="contextContent"></div>
+          <div class="action-area" id="actionArea"></div>
+        </section>
+
+        <section id="loadingView" class="view loading-view">
+          <div class="ring-loader"><span></span><span></span><span></span></div>
+          <span class="section-index">03 / ANALYSIS</span>
+          <h2 id="loadingTitle">正在解析比赛数据</h2>
+          <p id="loadingCopy">正在整理事件、检索规则证据并构建评判上下文。</p>
+          <div class="loading-track"><i></i></div>
+          <div class="live-progress hidden" id="liveProgress">
+            <header><div><span class="live-dot"></span><strong>实时执行轨迹</strong></div><small>LIVE · 自动更新</small></header>
+            <div class="tool-timeline" id="toolTimeline"></div>
+            <p class="trace-note">显示工具调用、执行状态与结果摘要；不会展示模型隐藏推理。</p>
+          </div>
+        </section>
+
+        <section id="reportView" class="view">
+          <div class="section-heading report-head">
+            <div><span class="section-index">04 / REPORT</span><h2>比赛分析报告</h2></div>
+            <button class="ghost-btn" id="newAnalysis" type="button">＋ 新分析</button>
+          </div>
+          <div id="reportContent"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
